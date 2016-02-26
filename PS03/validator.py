@@ -7,18 +7,26 @@ import sys,zipfile,os,os.path
 
 PS="PS03"
 
-required_files = """answers.txt wordcount_top10.py wordcount_top10.txt guanly502_gutenberg_ls.txt guanly502_gutenberg_ls.txt guanly502_gutenberg_top10.txt join1.py join1.txt join2.py join2.txt join3.py join3.txt first50.py first50.txt first50join1.py first50join1.txt sortedjoinbycountry.py sortedjoinbycountry.txt wikipedia_stats.py wikipedia_stats.txt wikipedia_stats.pdf"""
+required_files = "answers.txt wordcount_top10.py wordcount_top10.txt guanly502_gutenberg_ls.txt guanly502_gutenberg_top10.txt join1.py join1.txt join2.py join2.txt join3.py join3.txt first50.py first50.txt first50join1.py first50join1.txt sortedjoinbycountry.py sortedjoinbycountry.txt wikipedia_stats.py wikipedia_stats.txt wikipedia_stats.pdf"
 
-required = required_files.split(" ")
-optional = []
+required = set(required_files.split(" "))
+optional = set()
 
 from subprocess import Popen,PIPE,call
+
+def ignore_file(fname):
+    if len(fname)==0: return True
+    if fname[0] in "._": return True
+    base = os.path.basename(fname)
+    if base[0] in "._": return True
+    return False
+
 
 def build_zip(fname):
     required_missing = 0
     print("Building {0}".format(fname))
     z = zipfile.ZipFile(fname,"w",zipfile.ZIP_DEFLATED)
-    for fn in required+optional:
+    for fn in required.union(optional):
         if os.path.exists(fn):
             print("Adding {0}...".format(fn))
             z.write(fn)
@@ -76,35 +84,36 @@ def validate(zfile,hook=None):
         os.mkdir("unpack")
     except OSError as e:
         pass
-    required_count = 0
-    optional_count = 0
+    found_required = set()
+    found_optional = set()
     errors = 0
     print("Validating {0} ...\n".format(zfile))
     z = zipfile.ZipFile(zfile)
-    for p in ('required','optional','unwanted'):
-        for f in z.filelist:
-            fname = f.orig_filename
-            fbase = os.path.basename(fname)
-            if fbase in required and p=='required':
-                print("Required file {0} present.".format(fbase))
-                required.remove(fbase)
-                errors += validate_file(z,fname,fbase,hook)
-                continue
-            if fbase in optional and p=='optional':
-                print("Optional file: {0} present.".format(fbase))
-                optional.remove(fbase)
-                errors += validate_file(z,fname,fbase,hook)
-                continue
-            if p=='unwanted':
-                print("Unwanted file: {0}".format(fname))
-                errors += 1
+    for f in z.filelist:
+        fname = f.orig_filename
+        if ignore_file(fname): continue
+        fbase = os.path.basename(fname)
+        if fbase in required:
+            found_required.add(fbase)
+            errors += validate_file(z,fname,fbase,hook)
+            continue
+        if fbase in optional:
+            found_optional.add(fbase)
+            errors += validate_file(z,fname,fbase,hook)
+            continue
+        found_unwanted.add(fbase)
 
-    print("")
-    if required:
-        print("MISSING REQUIRED FILES: "+" ".join(required))
-        errors += len(required)
-    if optional:
-        print("MISSING OPTIONAL FILES: "+" ".join(optional))
+    def print_file_list(title,files):
+        if files:
+            print(title)
+            for word in files:
+                print("\t"+word)
+
+    print_file_list("Found required files:",found_required)
+    print_file_list("Found optional files:",found_optional)
+    
+    print_file_list("MISSING REQUIRED FILES:",required.symmetric_difference(found_required)) 
+    print_file_list("MISSING OPTIONAL FILES:",optional.symmetric_difference(found_optional)) 
     if errors:
         print("TOTAL ERRORS: {0}".format(errors))
     return(errors)

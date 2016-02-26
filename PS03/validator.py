@@ -86,6 +86,7 @@ def validate(zfile,hook=None):
         pass
     found_required = set()
     found_optional = set()
+    found_unwanted = set()
     errors = 0
     print("Validating {0} ...\n".format(zfile))
     z = zipfile.ZipFile(zfile)

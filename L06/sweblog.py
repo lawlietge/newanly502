@@ -27,16 +27,13 @@ def parse_apache_log_line(logline):
         raise Error("Invalid logline: {}".format(logline))
 
     timestamp = m.group(2)
-    request = m.group(3)
-    agent = m.group(7)
-    if agent:
-        agent = agent.replace('"','')
+    request   = m.group(3)
+    agent     = m.group(7).replace('"','') if m.group(7) else ''
 
     request_fields = request.split(" ")
-    url = request_fields[1] if len(request_fields)>2 else ""
-    datetime = dateutil.parser.parse(timestamp.replace(":", " ", 1)).isoformat()
-    date = datetime[0:10]
-    time = datetime[11:]
+    url         = request_fields[1] if len(request_fields)>2 else ""
+    datetime    = dateutil.parser.parse(timestamp.replace(":", " ", 1)).isoformat()
+    (date,time) = (datetime[0:10],datetime[11:])
 
     n = wikipage_re.search(url)
     wikipage = n.group(2) if n else ""

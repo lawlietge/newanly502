@@ -14,8 +14,8 @@ class Validator:
         cfg = ConfigParser.SafeConfigParser()
         cfg.read(cfg_name)
         self.name = cfg.get("PS","name")
-        self.required = cfg.get("PS","required_files").replace(","," ").split()
-        self.optional = cfg.get("PS","optional_files").replace(","," ").split()
+        self.required = set(cfg.get("PS","required_files").replace(","," ").split())
+        self.optional = set(cfg.get("PS","optional_files").replace(","," ").split())
 
     def fname(self):
         return self.name+".zip"
@@ -36,7 +36,7 @@ class Validator:
                 print("Adding {0}...".format(fn))
                 z.write(fn)
             else:
-                if fn in required:
+                if fn in self.required:
                     msg = "REQUIRED FILE "
                     required_missing += 1
                 else:
@@ -96,20 +96,21 @@ class Validator:
         z = zipfile.ZipFile(zfile)
         for f in z.filelist:
             fname = f.orig_filename
-            if ignore_file(fname): continue
+            if v.ignore_file(fname): continue
             fbase = os.path.basename(fname)
-            if fbase in required:
+            if fbase in self.required:
                 found_required.add(fbase)
-                errors += validate_file(z,fname,fbase,hook)
+                errors += self.validate_file(z,fname,fbase,hook)
                 continue
-            if fbase in optional:
+            if fbase in self.optional:
                 found_optional.add(fbase)
-                errors += validate_file(z,fname,fbase,hook)
+                errors += self.validate_file(z,fname,fbase,hook)
                 continue
-            found_unwanted.add(fbase)
+            self.found_unwanted.add(fbase)
 
         def print_file_list(title,files):
             if files:
+                print("")
                 print(title)
                 for word in files:
                     print("\t"+word)
@@ -118,8 +119,8 @@ class Validator:
         print_file_list("Found required files:",found_required)
         print_file_list("Found optional files:",found_optional)
 
-        print_file_list("MISSING REQUIRED FILES:",required.symmetric_difference(found_required)) 
-        print_file_list("MISSING OPTIONAL FILES:",optional.symmetric_difference(found_optional)) 
+        print_file_list("MISSING REQUIRED FILES:",self.required.symmetric_difference(found_required)) 
+        print_file_list("MISSING OPTIONAL FILES:",self.optional.symmetric_difference(found_optional)) 
         if errors:
             print("TOTAL ERRORS: {0}".format(errors))
         return(errors)

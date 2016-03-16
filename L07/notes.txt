@@ -1,1 +1,33 @@
 List of presidents: https://datahub.io/dataset/list-of-us-presidents/resource/ba0cdb03-c0f0-45ff-a21f-63fdf6ce1a89
+https://commondatastorage.googleapis.com/ckannet-storage/2012-05-08T122246/USPresident-Wikipedia-URLs-Thmbs-HS.csv
+
+f = open("USPresident-Wikipedia-URLs-Thmbs-HS.csv")
+rows = [row for row in csv.DictReader(f)]
+
+In [7]: sqlContext
+Out[7]: <pyspark.sql.context.HiveContext at 0x7f6cbac9fd10>
+
+In [8]: sqlCtx
+Out[8]: <pyspark.sql.context.HiveContext at 0x7f6cbac9fd10>
+
+In [9]: sqlContext is sqlCtx
+Out[9]: True
+
+In [10]: df = sqlCtx.createDataFrame(rows)
+/usr/lib/spark/python/pyspark/sql/context.py:237: UserWarning: inferring schema from dict is deprecated,please use pyspark.sql.Row instead
+  warnings.warn("inferring schema from dict is deprecated,"
+16/03/14 11:40:04 INFO hive.HiveContext: Initializing execution hive, version 1.2.1
+16/03/14 11:40:04 INFO client.ClientWrapper: Inspected Hadoop version: 2.7.1-amzn-0
+16/03/14 11:40:04 INFO client.ClientWrapper: Loaded org.apache.hadoop.hive.shims.Hadoop23Shims for Hadoop version 2.7.1-amzn-0
+...
+In [12]: df.columns
+Out[12]: 
+
+df.registerAsTable('presidents')
+sqlCtx.sql("select * from presidents").show()
+
+df.select(df['Portrait'] > 'G').show()
+
+
+df.show()
+

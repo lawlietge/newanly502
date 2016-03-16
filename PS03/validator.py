@@ -65,6 +65,7 @@ def validate_file(z,fname,fbase,hook):
     if fbase.endswith(".py"):
         try:
             py_compile.compile(fnew)
+            print("COMPILES OK!")
         except py_compile.PyCompileError as e:
             print("Compile error: "+str(e))
             errors += 1

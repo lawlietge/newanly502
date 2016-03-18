@@ -15,7 +15,7 @@ DEFINE EXTRACT       org.apache.pig.piggybank.evaluation.string.EXTRACT();
 -- Uncomment the data source you wish to use:
 
 -- This URL uses just one day
-aw_logs = load 's3://gu-anly502/ps03/forensicswiki.2012-01.unzipped/access.log.2012-01-01' as (line:chararray);
+-- raw_logs = load 's3://gu-anly502/ps03/forensicswiki.2012-01.unzipped/access.log.2012-01-01' as (line:chararray);
 --
 -- This URL uses another day:
 -- raw_logs = load 's3://gu-anly502/ps03/forensicswiki/access.log.2012-12-31.gz' as (line:chararray);
@@ -24,7 +24,7 @@ aw_logs = load 's3://gu-anly502/ps03/forensicswiki.2012-01.unzipped/access.log.2
 -- raw_logs = load 's3://gu-anly502/ps03/forensicswiki.2012-01.unzipped/access.log.2012-01-??' as (line:chararray);
 --
 -- This URL reads all of 2012:
--- raw_logs = load 's3://gu-anly502/ps03/forensicswiki.2012.txt' as (line:chararray);
+raw_logs = load 's3://gu-anly502/ps03/forensicswiki.2012.txt' as (line:chararray);
 
  
 -- logs_base processes each of the lines 

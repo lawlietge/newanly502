@@ -34,9 +34,22 @@ logs_base =
      host: chararray, identity: chararray, user: chararray, datetime_str: chararray, verb: chararray, url: chararray, request: chararray, status: int,
      size: int, referrer: chararray, agent: chararray
      );
+logs  = FOREACH logs_base GENERATE ToDate(SUBSTRING(datetime_str,0,11),'dd/MMM/yyyy') AS date, url;
+date_logs = FOREACH logs      GENERATE SUBSTRING(ToString(date),0,10) AS date, url;
+2012_logs = FOREACH date_logs GENERATE REGEX_EXTRACT_ALL(date, '(2012.*)') AS date, url;
+wiki_logs = FOREACH 2012_logs GENERATE REGEX_EXTRACT_ALL(url, '(index.php\\?title=|/wiki/)([^ &]*)') AS date, url;
 
--- YOUR CODE GOES HERE
--- PUT YOUR RESULTS IN output
+
+by_url = GROUP wiki_logs BY (url);
+url_counts = FOREACH by_url GENERATE
+    group AS url,    -- the key you grouped on
+    COUNT(wiki_logs);      -- the number of log lines wiht this date
+url_counts_sorted = ORDER url_counts BY $1 DESC;
+url_counts_sorted = limit url_counts_sorted 20; 
+dump url_counts_sorted;
+
+
+
 
 store output INTO 'forensicswiki_page_top20' USING PigStorage();
 

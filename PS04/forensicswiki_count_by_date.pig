@@ -40,9 +40,18 @@ logs_base =
      host: chararray, identity: chararray, user: chararray, datetime_str: chararray, verb: chararray, url: chararray, request: chararray, status: int,
      size: int, referrer: chararray, agent: chararray
      );
+logs  = FOREACH logs_base GENERATE ToDate(SUBSTRING(datetime_str,0,11),'dd/MMM/yyyy') AS date, url;
+logs2 = FOREACH logs      GENERATE SUBSTRING(ToString(date),0,10) AS date, url;
 
--- YOUR CODE GOES HERE
--- YOUR CODE SHOULD PUT THE RESULTS IN date_counts_sorted
+by_date = GROUP logs2 BY (date);
+date_counts = FOREACH by_date GENERATE
+    group AS date,    -- the key you grouped on
+    COUNT(logs2);      -- the number of log lines wiht this date
+date_counts_sorted = ORDER date_counts BY date;
+dump date_counts_sorted;
+
+
+dump date_counts;
 
 store date_counts_sorted INTO 'count_by_date' USING PigStorage();
 
@@ -50,4 +59,3 @@ store date_counts_sorted INTO 'count_by_date' USING PigStorage();
 -- Get the results
 --
 fs -getmerge count_by_date forensicswiki_count_by_date.txt
-

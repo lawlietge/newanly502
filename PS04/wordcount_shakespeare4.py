@@ -32,7 +32,7 @@ if __name__ == "__main__":
     sc     = SparkContext( appName="Shakespeare Count" )
     lines  = sc.textFile( infile )
     
-    counts = lines.flatMap(lambda line: line.split(' ')) \
+    counts = lines.flatMap(lambda line: line.lower().split()) \
                   .map(lambda word: filter(unicode.isalpha,word)) \
                   .map(lambda x: (x, 1)) \
                   .reduceByKey(add)

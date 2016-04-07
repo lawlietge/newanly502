@@ -52,7 +52,7 @@ create temporary table bot_stats (
 );
 
 insert overwrite table bot_stats
-YOUR CODE GOES HERE
+YOUR CODE GOES HEREdfsdf
 
 select yearmonth,botcount,nonbotcount from bot_stats order by yearmonth;
 

@@ -1,0 +1,85 @@
+0: jdbc:hive2://localhost:10000> SET mapred.input.dir.recursive=true;
+0: jdbc:hive2://localhost:10000> SET hive.mapred.supports.subdirectories=true;
+0: jdbc:hive2://localhost:10000> SET hive.groupby.orderby.position.alias=true;
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> DROP TABLE IF EXISTS raw_logs;
+0: jdbc:hive2://localhost:10000> CREATE EXTERNAL TABLE raw_logs (
+. . . . . . . . . . . . . . . .>   host STRING,
+. . . . . . . . . . . . . . . .>   identity STRING,
+. . . . . . . . . . . . . . . .>   user STRING,
+. . . . . . . . . . . . . . . .>   rawdatetime STRING,
+. . . . . . . . . . . . . . . .>   request STRING,
+. . . . . . . . . . . . . . . .>   status STRING,
+. . . . . . . . . . . . . . . .>   size STRING,
+. . . . . . . . . . . . . . . .>   refer STRING,
+. . . . . . . . . . . . . . . .>   agent STRING
+. . . . . . . . . . . . . . . .>   )
+. . . . . . . . . . . . . . . .> ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.RegexSerDe'
+. . . . . . . . . . . . . . . .> WITH SERDEPROPERTIES (
+. . . . . . . . . . . . . . . .>   "input.regex" = "([^ ]*) ([^ ]*) ([^ ]*) (-|\\[[^\\]]*\\]) ([^ \"]*|\"[^\"]*\") (-|[0-9]*) (-|[0-9]*) \"([^\"]*)\" \"([^\"]*)\".*",
+. . . . . . . . . . . . . . . .>   "output.format.string" = "%1$s %2$s %3$s %4$s %5$s %6$s %7$s %8$s %9$s"
+. . . . . . . . . . . . . . . .> )
+. . . . . . . . . . . . . . . .> STORED AS TEXTFILE
+. . . . . . . . . . . . . . . .> LOCATION 's3://gu-anly502/ps05/forensicswiki/2012/';
+0: jdbc:hive2://localhost:10000> --LOCATION 's3://gu-anly502/ps05/forensicswiki/2012/12/'
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> DROP TABLE IF EXISTS agent_logs;
+0: jdbc:hive2://localhost:10000> create temporary table agent_logs (
+. . . . . . . . . . . . . . . .>   date  timestamp,
+. . . . . . . . . . . . . . . .>   agent string,
+. . . . . . . . . . . . . . . .>   os    string,
+. . . . . . . . . . . . . . . .>   bot   boolean
+. . . . . . . . . . . . . . . .> );
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> insert overwrite table agent_logs
+. . . . . . . . . . . . . . . .> select from_unixtime(unix_timestamp(rawdatetime, "[dd/MMM/yyyy:HH:mm:ss Z]")),agent,
+. . . . . . . . . . . . . . . .> if(instr(lower(agent),"windows")>0,"windows",if(instr(lower(agent),"mac")>0,"mac",if(instr(lower(agent),"linux")>0,"linux",""))),
+. . . . . . . . . . . . . . . .> instr(lower(agent),"bot")>0
+. . . . . . . . . . . . . . . .> from raw_logs;
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> -- Section #1:
+0: jdbc:hive2://localhost:10000> select os, count(*) as number_hits
+. . . . . . . . . . . . . . . .> from agent_logs
+. . . . . . . . . . . . . . . .> where (os='windows' or os ='mac' or os ='linux')
+. . . . . . . . . . . . . . . .> group by os;
++----------+--------------+--+
+|    os    | number_hits  |
++----------+--------------+--+
+| windows  | 7876016      |
+| linux    | 1526515      |
+| mac      | 1109049      |
++----------+--------------+--+
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> -- Section #2: Provide 5 agents for which the OS could not be classified that are bots
+0: jdbc:hive2://localhost:10000> select agent, count(*) as number_hits
+. . . . . . . . . . . . . . . .> from agent_logs
+. . . . . . . . . . . . . . . .> where os="" and bot=True and length(agent)>15
+. . . . . . . . . . . . . . . .> group by agent
+. . . . . . . . . . . . . . . .> limit 5;
++------------------------------------------------------------------------------------------------------+--------------+--+
+|                                                agent                                                 | number_hits  |
++------------------------------------------------------------------------------------------------------+--------------+--+
+| A1 Sitemap Generator/1.0 (+http://www.micro-sys.dk/products/sitemap-generator/) miggibot/2006.01.24  | 2            |
+| AddThis.com robot tech.support@clearspring.com                                                       | 53           |
+| BTbot/0.x (+http://www.btbot.com/btbot.html)                                                         | 2            |
+| BaboomBot/1.x.x (+http://www.baboom.us)                                                              | 2            |
+| BigCliqueBOT/1.03-dev (bigclicbot; http://www.bigclique.com; bot@bigclique.com)                      | 2            |
++------------------------------------------------------------------------------------------------------+--------------+--+
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> -- Section #3: Provide 5 agents for which the OS could not be classified that are not bots.
+0: jdbc:hive2://localhost:10000> select agent, count(*) as number_hits
+. . . . . . . . . . . . . . . .> from agent_logs
+. . . . . . . . . . . . . . . .> where os="" and bot=False and length(agent)>15
+. . . . . . . . . . . . . . . .> group by agent
+. . . . . . . . . . . . . . . .> limit 5;
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------+--+
+|                                                                                                         agent                                                                                                          | number_hits  |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------+--+
+| < !--#exec cmd=\                                                                                                                                                                                                       | 18           |
+| ASTRO36_TD/v3 MAUI/10A1032MP_ASTRO_W1052 Release/31.12.2010 Browser/Opera Profile/MIDP-2.0 Configuration/CLDC-1.1 Sync/SyncClient1.1 Opera/9.80 (MTK; Nucleus; Opera Mobi/4000; U; id-ID) Presto/2.5.28 Version/10.10  | 4            |
+| AVSearch-3.0(AltaVista/AVC)                                                                                                                                                                                            | 2            |
+| Acoon v4.1.0 (www.acoon.de)                                                                                                                                                                                            | 517          |
+| Ad Muncher v4.93.33707/4211                                                                                                                                                                                            | 12           |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------+--+
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> 

@@ -33,9 +33,9 @@ create temporary table agent_logs (
 
 insert overwrite table agent_logs
 select from_unixtime(unix_timestamp(rawdatetime, "[dd/MMM/yyyy:HH:mm:ss Z]")),agent,
-if(instr(lower(agent),"windows")>0,"windows",if(instr(lower(agent),"mac")>0,"mac"if(instr(lower(agent),"linux")>0,"linux",""))),
+if(instr(lower(agent),"windows")>0,"windows",if(instr(lower(agent),"mac")>0,"mac",if(instr(lower(agent),"linux")>0,"linux",""))),
 instr(lower(agent),"bot")>0
-from row_logs;
+from raw_logs;
 
 -- Section #1:
 select os, count(*) as number_hits

@@ -1,0 +1,78 @@
+0: jdbc:hive2://localhost:10000> -- Set up config options based on documentation
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> SET mapred.input.dir.recursive=true;
+0: jdbc:hive2://localhost:10000> SET hive.mapred.supports.subdirectories=true;
+0: jdbc:hive2://localhost:10000> SET hive.groupby.orderby.position.alias=true;
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> DROP TABLE IF EXISTS raw_logs;
+0: jdbc:hive2://localhost:10000> CREATE EXTERNAL TABLE raw_logs (
+. . . . . . . . . . . . . . . .>   host STRING,
+. . . . . . . . . . . . . . . .>   identity STRING,
+. . . . . . . . . . . . . . . .>   user STRING,
+. . . . . . . . . . . . . . . .>   rawdatetime STRING,
+. . . . . . . . . . . . . . . .>   request STRING,
+. . . . . . . . . . . . . . . .>   status STRING,
+. . . . . . . . . . . . . . . .>   size STRING,
+. . . . . . . . . . . . . . . .>   refer STRING,
+. . . . . . . . . . . . . . . .>   agent STRING
+. . . . . . . . . . . . . . . .>   )
+. . . . . . . . . . . . . . . .> ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.RegexSerDe'
+. . . . . . . . . . . . . . . .> WITH SERDEPROPERTIES (
+. . . . . . . . . . . . . . . .>   "input.regex" = "([^ ]*) ([^ ]*) ([^ ]*) (-|\\[[^\\]]*\\]) ([^ \"]*|\"[^\"]*\") (-|[0-9]*) (-|[0-9]*) \"([^\"]*)\" \"([^\"]*)\".*",
+. . . . . . . . . . . . . . . .>   "output.format.string" = "%1$s %2$s %3$s %4$s %5$s %6$s %7$s %8$s %9$s"
+. . . . . . . . . . . . . . . .> )
+. . . . . . . . . . . . . . . .> STORED AS TEXTFILE
+. . . . . . . . . . . . . . . .> LOCATION 's3://gu-anly502/ps05/forensicswiki/2012/';
+0: jdbc:hive2://localhost:10000> --LOCATION 's3://gu-anly502/ps05/forensicswiki/2012/12/';
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> DROP TABLE IF EXISTS bot_logs;
+0: jdbc:hive2://localhost:10000> create temporary table bot_logs (
+. . . . . . . . . . . . . . . .>   date  timestamp,
+. . . . . . . . . . . . . . . .>   size  bigint,
+. . . . . . . . . . . . . . . .>   agent string,
+. . . . . . . . . . . . . . . .>   bot   boolean
+. . . . . . . . . . . . . . . .> );
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> insert overwrite table bot_logs
+. . . . . . . . . . . . . . . .>   select from_unixtime(unix_timestamp(rawdatetime, "[dd/MMM/yyyy:HH:mm:ss Z]")),
+. . . . . . . . . . . . . . . .>          int(size),
+. . . . . . . . . . . . . . . .>          agent,
+. . . . . . . . . . . . . . . .>          instr(lower(agent),"bot")>0
+. . . . . . . . . . . . . . . .>   from raw_logs;
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> create temporary table bot_stats (
+. . . . . . . . . . . . . . . .>   yearmonth string,
+. . . . . . . . . . . . . . . .>   count bigint,
+. . . . . . . . . . . . . . . .>   botcount bigint,
+. . . . . . . . . . . . . . . .>   nonbotcount bigint,
+. . . . . . . . . . . . . . . .>   size bigint,
+. . . . . . . . . . . . . . . .>   botsize bigint,
+. . . . . . . . . . . . . . . .>   nonbotsize bigint
+. . . . . . . . . . . . . . . .> );
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> insert overwrite table bot_stats
+. . . . . . . . . . . . . . . .> select substr(date,1,7),Count(*),Sum(if(Bot,1,0)),Sum(IF(Bot,0,1)),Sum(Size),Sum(if(Bot,Size,0)),Sum(IF(Bot,0,Size)) 
+. . . . . . . . . . . . . . . .> from bot_logs
+. . . . . . . . . . . . . . . .> group by substr(date,1,7);
+0: jdbc:hive2://localhost:10000> 
+0: jdbc:hive2://localhost:10000> select*from bot_stats order by yearmonth;
++----------------------+------------------+---------------------+------------------------+-----------------+--------------------+-----------------------+--+
+| bot_stats.yearmonth  | bot_stats.count  | bot_stats.botcount  | bot_stats.nonbotcount  | bot_stats.size  | bot_stats.botsize  | bot_stats.nonbotsize  |
++----------------------+------------------+---------------------+------------------------+-----------------+--------------------+-----------------------+--+
+| NULL                 | 1684             | 0                   | 1684                   | NULL            | 0                  | NULL                  |
+| 2012-01              | 1531109          | 56277               | 1474832                | 12226058458     | 360215045          | 11865843413           |
+| 2012-02              | 1327080          | 53559               | 1273521                | 15000259536     | 369859559          | 14630399977           |
+| 2012-03              | 1279618          | 153461              | 1126157                | 26732114035     | 1560150961         | 25171963074           |
+| 2012-04              | 1014235          | 78668               | 935567                 | 15562911939     | 562037157          | 15000874782           |
+| 2012-05              | 1169186          | 100801              | 1068385                | 14198731209     | 706112931          | 13492618278           |
+| 2012-06              | 1302866          | 114782              | 1188084                | 14276608450     | 759273271          | 13517335179           |
+| 2012-07              | 1282407          | 109631              | 1172776                | 14019271957     | 836064519          | 13183207438           |
+| 2012-08              | 1453937          | 86006               | 1367931                | 17154148874     | 598003885          | 16556144989           |
+| 2012-09              | 1281966          | 108440              | 1173526                | 15032717435     | 1145153772         | 13887563663           |
+| 2012-10              | 1500011          | 145690              | 1354321                | 17736276978     | 1495106610         | 16241170368           |
+| 2012-11              | 1395444          | 152943              | 1242501                | 15112201053     | 1290266499         | 13821934554           |
+| 2012-12              | 1397584          | 203189              | 1194395                | 13542620595     | 1872651669         | 11669968926           |
+| 2013-01              | 12427            | 3840                | 8587                   | 86737082        | 30035913           | 56701169              |
++----------------------+------------------+---------------------+------------------------+-----------------+--------------------+-----------------------+--+
+0: jdbc:hive2://localhost:10000> 
